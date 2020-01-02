@@ -243,16 +243,6 @@ public class EEMail_getData extends JFrame implements KeyListener{
 				main.gui = new EEMail_GUI(main, imap.getText());
 			}
 			
-			String s = "";
-			try {
-				s = EEMail.getPublicKeyFromUser(mail.getText(), "http://server.tyratox.ch/api");
-				if(s.equalsIgnoreCase("nonet")){
-					return;
-				}
-			} catch (Exception e1) {
-				e1.printStackTrace();
-			}
-			
 			String dataOK = main.refreshMails();
 			
 			if(dataOK.equalsIgnoreCase("loginData")){
@@ -273,7 +263,7 @@ public class EEMail_getData extends JFrame implements KeyListener{
 				
 				System.err.println("Error while login in in Mail Server!");
 			}else{
-				if(s.contains("404")){
+				if(!main.hasKeys()){
 					try {
 						main.generateNewKeys();
 					} catch (Exception e) {

@@ -2,6 +2,7 @@ package ch.tyratox.security.eemail;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,7 +19,10 @@ import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileSystemView;
+
 import com.sun.mail.smtp.SMTPAddressFailedException;
 import com.sun.org.apache.xml.internal.security.utils.Base64;
 
@@ -57,109 +61,36 @@ public class EEMail {
 		new EEMail();
 	}
 	public EEMail(){
-		URL url;
-		try {
-			url = new URL("http://server.tyratox.ch/test.html");
-			URLConnection con = url.openConnection();
-			InputStream is = con.getInputStream();
-			BufferedReader bf = new BufferedReader(new InputStreamReader(is));
-			String line = bf.readLine();
-			if(line.equalsIgnoreCase("works")){
-				bf.close();
-			}else{
-				bf.close();
-				JOptionPane.showMessageDialog(null, "Your firewall blocks this software! We will quit!");
-				System.exit(0);
-			}
-		} catch (Exception e) {
-			try{
-				url = new URL("http://google.ch");
-				URLConnection con = url.openConnection();
-				con.getInputStream();
-			}catch(Exception lol){
-				JOptionPane.showMessageDialog(null, "You aren't connected to the internet :(");
-				System.exit(0);	
-			}
-			JOptionPane.showMessageDialog(null, "Our server is currently down, we well be back tomorrow morning :( , if you think this is an error contact me@tyratox.ch");
-			System.exit(0);
-		}
 		getAppPath();
 		master = this;
 		getData();
 		
 	}
-	public static String changeKey(String url_, String username, String newKeyLink, String pathToPrivateKey)throws Exception{
-		EEMail_RSA rsa = new EEMail_RSA();
-		 // open a connection to the site
-	    URL url = new URL(url_);
-	    URLConnection con = url.openConnection();
-	    // activate the output
-	    con.setDoOutput(true);
-	    PrintStream ps = new PrintStream(con.getOutputStream());
-	    // send your parameters to your site
-	    ps.print("username=" + username);
-	    ps.print("&rsa_key=" + newKeyLink);
-	 
-	    // we have to get the input stream in order to actually send the request
-	    InputStream is = con.getInputStream();
-	    BufferedReader bf = new BufferedReader(new InputStreamReader(is));
-	    String code = "";
-	    String line;
-	    while((line = bf.readLine()) != null){
-	    	code = code+line;
-	    }
-	    if(code.equalsIgnoreCase("Added user and key!")){
-	    	return "added";
-	    }else{
-		    byte[] encoded = Base64.decode(code);
-		    String decoded = new String(rsa.decrypt(encoded, pathToPrivateKey));
-		 
-		    // close the print stream
-		    ps.close();
-		    
-		    url = new URL(url_);
-		    con = url.openConnection();
-		    con.setDoOutput(true);
-		    ps = new PrintStream(con.getOutputStream());
-		    // send your parameters to your site
-		    ps.print("username="+username);
-		    ps.print("&rsa_key="+newKeyLink);
-		    ps.print("&pw=" + decoded);
-		 
-		    // we have to get the input stream in order to actually send the request
-		    is = con.getInputStream();
-		    is.close();
-			ps.close();
-			return decoded;
-	    }
-	}
-	public static String getPublicKeyFromUser(String username, String url_) throws Exception{
-		try{
-			URL url = new URL(url_ + "?username="+username);
-		    URLConnection con = url.openConnection();
-		    // activate the output
-		    con.setDoOutput(true);
-		    
-		    InputStream is = con.getInputStream();
-		    BufferedReader bf = new BufferedReader(new InputStreamReader(is));
-		    String line = "";
-		    String key = "";
-		    while((line = bf.readLine())!=null){
-		    	if(key == ""){
-		    		key = line;
-		    	}else{
-		    		key = key+ls+line;
-		    	}
-		    }
-		    if(key.contains("404")){
-		    	return "404";
-		    }else{
-		    	return key;
-		    }
-		}catch(UnknownHostException es){
-			JOptionPane.showMessageDialog(null, "You aren't connected to the internet!");
-			return "nonet";
+	
+	public static String getPublicKeyFromUser(String username) throws Exception{
+		
+		JFileChooser chooser = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+		
+		int option = chooser.showOpenDialog(null);
+		if(option == JFileChooser.APPROVE_OPTION) {
+			InputStream is = new FileInputStream(chooser.getSelectedFile());
+			BufferedReader buf = new BufferedReader(new InputStreamReader(is));
+			        
+			String line = buf.readLine();
+			StringBuilder sb = new StringBuilder();
+			        
+			while(line != null){
+			   sb.append(line).append(ls);
+			   line = buf.readLine();
+			}
+			
+			buf.close();
+			        
+			return sb.toString();
+		}else {
+			return "404";
 		}
+		
 	}
 	
 	private void getData(){
@@ -173,6 +104,7 @@ public class EEMail {
 		gui.loading.setText("Getting unread Mails from " + host_IMAP + " .....");
 		gui.pb.setValue(10);
 		messages = imap.getMailsIMAP(master, email, password, host_IMAP, imapPort);
+		System.out.println("Loaded " + messages.length + " messages!");
 		gui.pb.setValue(90);
 		if(messages != null && messages.length != 0){
 			if(messages[0][0] == "loginData"){
@@ -232,7 +164,7 @@ public class EEMail {
 	         gui.pb.setValue(70);
 	         gui.loading.setText("Encrypting Mail.......");
 	         EEMail_RSA rsa = new EEMail_RSA();
-	         String s = EEMail.getPublicKeyFromUser(to, "http://server.tyratox.ch/api/");
+	         String s = EEMail.getPublicKeyFromUser(to);
 	         String enc = "";
 	         if(s.equalsIgnoreCase("404")){
 	        	 if(JOptionPane.showConfirmDialog(form, "Not able to send Mail encrypted, the other user doesn't use this software! Do you want to send the mail unencrypted?") == JOptionPane.OK_OPTION){
@@ -245,7 +177,7 @@ public class EEMail {
 	         }else{
 	        	 
 	        	 byte[] key = Crypter.generateRandomString();
-	        	 byte[] encKey = rsa.encryptWithString(key, EEMail.getPublicKeyFromUser(to, "http://server.tyratox.ch/api/"));
+	        	 byte[] encKey = rsa.encryptWithString(key, s);
 	        	 String encKeyB64 = Base64.encode(encKey);
 	        	 
 	        	 String encData64 = Crypter.encrypt(msg, key);
@@ -318,13 +250,11 @@ public class EEMail {
 		}
 		
 		rsa.generateKeyPair(appKeyPath + "mypublic.pem", appKeyPath + "private.pem");
-		String code = changeKey("http://server.tyratox.ch/api/", email, "http://server.tyratox.ch/api/keys/users/" + email, appKeyOldPath + "private.pem");
-		if(code.equalsIgnoreCase("added")){
-			EEMail_FTP.uploadFileoverFTP("server.tyratox.ch", "eemail", "eemail", appKeyPath + "mypublic.pem", email, "/users/");
-		}else{
-			EEMail_FTP.uploadFileoverFTP("server.tyratox.ch", "eemail", "eemail", appKeyPath + "mypublic.pem", email+"_replace_"+code, "/users/");
-		}
 //		JOptionPane.showMessageDialog(gui, "Generated Keys!");
+	}
+	
+	public boolean hasKeys() {
+		return new File(appKeyPath + "private.pem").exists();
 	}
 
 }
